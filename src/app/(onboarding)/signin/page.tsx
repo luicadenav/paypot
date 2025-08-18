@@ -7,27 +7,44 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { useAuthStore } from "@/stores/authStore";
+import { useRouter } from "next/navigation";
 
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-type FormFields = z.infer<typeof schema>;
+type FormFields = z.infer<typeof schema>; // for typescript
 
 function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isSubmitting } = useAuthStore();
+  const router = useRouter();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    setError,
+    formState: { errors },
   } = useForm<FormFields>({
     resolver: zodResolver(schema), // way to connect zod
   });
 
-  const onSubmit: SubmitHandler<FormFields> = (data) => {
-    console.log(data);
+  const onSubmit: SubmitHandler<FormFields> = async (body) => {
+    try {
+      await login(body);
+      router.push("/");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError("root", {
+          type: "server",
+          message: e.message || "Sign in error",
+        });
+      } else {
+        setError("root", { type: "server", message: "Sign in error" });
+      }
+    }
   };
 
   return (
@@ -55,7 +72,7 @@ function SignIn() {
 
           {errors.email && (
             <span className="text-semantic-1 text-xs mt-0.5">
-              {errors.email.message}{" "}
+              {errors.email.message}
             </span>
           )}
         </div>
@@ -86,7 +103,7 @@ function SignIn() {
           </button>
           {errors.password && (
             <span className="text-semantic-1 text-xs mt-0.5">
-              {errors.password.message}{" "}
+              {errors.password.message}
             </span>
           )}
           <Link
@@ -99,10 +116,16 @@ function SignIn() {
         <div>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="bg-primary-1 text-white text-center w-full py-3 mt-8 rounded-xl font-sans font-medium text-md cursor-pointer hover:bg-primary-2 transition-colors duration-200 ease-in-out"
           >
             Sign In
           </button>
+          {errors.root?.type && (
+            <span className="text-semantic-1 text-xs mt-0.5">
+              {errors.root.message}
+            </span>
+          )}
           <p className="text-sm text-secondary-1 text-center mt-1 mb-20 ">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-primary-2 hover:underline">
